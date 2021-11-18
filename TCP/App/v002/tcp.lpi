@@ -5,7 +5,7 @@
     <PathDelim Value="\"/>
     <General>
       <SessionStorage Value="InProjectDir"/>
-      <Title Value="modbus"/>
+      <Title Value="tcp"/>
       <Scaled Value="True"/>
       <ResourceType Value="res"/>
       <UseXPManifest Value="True"/>
@@ -24,8 +24,8 @@
             <Filename Value="bin\$NameOnly($(ProjFile))-$(TargetCPU)-$(TargetOS)"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="$(ProjOutDir);..\common\synaser"/>
-            <OtherUnitFiles Value="..\common\pascalscada\src\common;..\common\synaser;..\common\pascalscada\src\scada;..\common\pascalscada\bgracontrols;..\common\pascalscada\bgrabitmap"/>
+            <IncludeFiles Value="$(ProjOutDir)"/>
+            <OtherUnitFiles Value="..\..\..\common\gui"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
@@ -63,7 +63,7 @@
     </RequiredPackages>
     <Units>
       <Unit>
-        <Filename Value="modbus.lpr"/>
+        <Filename Value="tcp.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
@@ -72,6 +72,10 @@
         <ComponentName Value="Form1"/>
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
+      </Unit>
+      <Unit>
+        <Filename Value="test.json"/>
+        <IsPartOfProject Value="True"/>
       </Unit>
     </Units>
   </ProjectOptions>
@@ -82,12 +86,13 @@
       <Filename Value="bin\$NameOnly($(ProjFile))-$(TargetCPU)-$(TargetOS)"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="$(ProjOutDir);..\common\synaser"/>
-      <OtherUnitFiles Value="..\common\pascalscada\src\common;..\common\synaser;..\common\pascalscada\src\scada;..\common\pascalscada\bgracontrols;..\common\pascalscada\bgrabitmap"/>
+      <IncludeFiles Value="$(ProjOutDir)"/>
+      <OtherUnitFiles Value="..\..\..\common\gui"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Linking>
       <Debugging>
+        <DebugInfoType Value="dsDwarf2"/>
         <UseHeaptrc Value="True"/>
       </Debugging>
       <Options>

@@ -1,0 +1,212 @@
+{
+ "Modbusnode": 1,
+ "canid": -1,
+ "firmware": "ABH1006_G",
+ "Data": [
+ {
+ "name": "AlarmCode",
+ "mask": "",
+ "db": true,
+ "success": true,
+ "type": "flags",
+ "value": [],
+ "hex-value": "00000000"
+ },
+ {
+ "name": "InverterCode1",
+ "mask": "",
+ "db": true,
+ "success": true,
+ "type": "flags",
+ "value": [],
+ "hex-value": "0000"
+ },
+ {
+ "name": "InverterCode2",
+ "mask": "",
+ "db": true,
+ "success": true,
+ "type": "flags",
+ "value": [],
+ "hex-value": "0000"
+ },
+ {
+ "name": "InverterCode3",
+ "mask": "",
+ "db": true,
+ "success": true,
+ "type": "flags",
+ "value": [],
+ "hex-value": "0000"
+ },
+ {
+ "name": "Vbatt",
+ "mask": "",
+ "db": true,
+ "success": true,
+ "type": "number",
+ "value": 51.899999999999999,
+ "digits": 1
+ },
+ {
+ "name": "Ibatt",
+ "mask": "",
+ "db": true,
+ "success": true,
+ "type": "number",
+ "value": 0.0,
+ "digits": 2
+ },
+ {
+ "name": "Pbatt",
+ "mask": "",
+ "db": true,
+ "success": true,
+ "type": "number",
+ "value": 0.0,
+ "digits": 0
+ },
+ {
+ "name": "Sbatt",
+ "mask": "",
+ "db": true,
+ "success": true,
+ "type": "number",
+ "value": 55.0,
+ "digits": 0
+ },
+ {
+ "name": "BmsAlarms",
+ "mask": "",
+ "db": true,
+ "success": true,
+ "type": "flags",
+ "value": [],
+ "hex-value": "0000"
+ },
+ {
+ "name": "Vdc1",
+ "mask": "",
+ "db": true,
+ "success": true,
+ "type": "number",
+ "value": 65.0,
+ "digits": 0
+ },
+{
+ "name": "Idc1",
+ "mask": "",
+ "db": true,
+ "success": true,
+ "type": "number",
+ "value": 0.0,
+ "digits": 2
+ },
+{
+ "name": "Pdc1",
+ "mask": "",
+ "db": true,
+ "success": true,
+ "type": "number",
+ "value": 0.0,
+ "digits": 0
+ },
+
+{
+ "name": "Vdc2",
+ "mask": "",
+ "db": true,
+ "success": true,
+ "type": "number",
+ "value": 65.0,
+ "digits": 0
+ },
+
+{
+ "name": "Idc2",
+ "mask": "",
+ "db": true,
+ "success": true,
+ "type": "number",
+ "value": 0.0,
+ "digits": 2
+ },
+
+{
+ "name": "Pdc2",
+ "mask": "",
+ "db": true,
+ "success": true,
+ "type": "number",
+ "value": 0.0,
+ "digits": 0
+ },
+
+{
+ "name": "Pac",
+ "mask": "",
+ "db": true,
+ "success": true,
+ "type": "number",
+ "value":-15,
+ "digits": 0
+ },
+
+{
+ "name": "Qac",
+ "mask": "",
+ "db": true,
+ "success": true,
+ "type": "number",
+ "value":-39,
+ "digits": 0
+ },
+
+{
+ "name": "Vcl",
+ "mask": "",
+ "db": true,
+ "success": true,
+ "type": "number",
+ "value": 231.0,
+ "digits": 0
+ },
+ {
+ "name": "Pcl",
+ "mask": "",
+ "db": true,
+ "success": true,
+ "type": "number",
+ "value": 0.0,
+ "digits": 0
+ },
+ {
+ "name": "Vac",
+ "mask": "",
+ "db": true,
+ "success": true,
+ "type": "number",
+ "value": 231.0,
+ "digits": 0
+ },
+ {
+ "name": "Fac",
+ "mask": "",
+ "db": true,
+ "success": true,
+ "type": "number",
+ "value": 49.979999999999997,
+ "digits": 2
+ },
+ {
+ "name": "PacGrid",
+ "mask": "",
+ "db": true,
+ "success": true,
+ "type": "number",
+ "value": -19,
+ "digits": 0
+ }
+ ]
+}
+

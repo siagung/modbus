@@ -1,0 +1,146 @@
+object Form1: TForm1
+  Left = 480
+  Height = 607
+  Top = 218
+  Width = 776
+  Caption = 'Form1'
+  ClientHeight = 607
+  ClientWidth = 776
+  OnCreate = FormCreate
+  LCLVersion = '2.3.0.0'
+  object grpCommand: TGroupBox
+    AnchorSideLeft.Control = Owner
+    AnchorSideTop.Control = Owner
+    Left = 12
+    Height = 280
+    Top = 8
+    Width = 244
+    BorderSpacing.Left = 12
+    BorderSpacing.Top = 8
+    Caption = 'Command'
+    ClientHeight = 260
+    ClientWidth = 240
+    TabOrder = 2
+    object btnGetData: TButton
+      AnchorSideLeft.Control = grpCommand
+      AnchorSideTop.Control = grpCommand
+      AnchorSideRight.Control = grpCommand
+      AnchorSideRight.Side = asrBottom
+      Left = 8
+      Height = 25
+      Top = 8
+      Width = 224
+      Anchors = [akTop, akLeft, akRight]
+      AutoSize = True
+      BorderSpacing.Around = 8
+      Caption = 'Get Data'
+      OnClick = btnGetDataClick
+      TabOrder = 0
+    end
+    object btnStartTimer: TButton
+      AnchorSideLeft.Control = btnGetData
+      AnchorSideTop.Control = btnGetData
+      AnchorSideTop.Side = asrBottom
+      AnchorSideRight.Control = btnGetData
+      AnchorSideRight.Side = asrBottom
+      Left = 8
+      Height = 25
+      Top = 41
+      Width = 224
+      Anchors = [akTop, akLeft, akRight]
+      AutoSize = True
+      Caption = 'Start Timer'
+      OnClick = btnStartTimerClick
+      TabOrder = 1
+    end
+    object btnStopTimer: TButton
+      AnchorSideLeft.Control = btnGetData
+      AnchorSideTop.Control = btnStartTimer
+      AnchorSideTop.Side = asrBottom
+      AnchorSideRight.Control = btnGetData
+      AnchorSideRight.Side = asrBottom
+      Left = 8
+      Height = 25
+      Top = 74
+      Width = 224
+      Anchors = [akTop, akLeft, akRight]
+      AutoSize = True
+      BorderSpacing.Top = 8
+      Caption = 'Stop Timer'
+      Enabled = False
+      OnClick = btnStopTimerClick
+      TabOrder = 2
+    end
+    object chkDebug: TCheckBox
+      AnchorSideLeft.Control = btnStopTimer
+      AnchorSideTop.Control = btnStopTimer
+      AnchorSideTop.Side = asrBottom
+      Left = 8
+      Height = 19
+      Top = 115
+      Width = 84
+      BorderSpacing.Top = 16
+      Caption = 'Debug JSON'
+      TabOrder = 3
+    end
+  end
+  object MemoInfo: TMemo
+    AnchorSideLeft.Control = grpCommand
+    AnchorSideLeft.Side = asrBottom
+    AnchorSideTop.Control = Owner
+    AnchorSideRight.Control = Owner
+    AnchorSideRight.Side = asrBottom
+    AnchorSideBottom.Control = Panel1
+    Left = 264
+    Height = 396
+    Top = 8
+    Width = 500
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    BorderSpacing.Left = 8
+    BorderSpacing.Top = 8
+    BorderSpacing.Right = 12
+    BorderSpacing.Bottom = 8
+    ScrollBars = ssAutoVertical
+    TabOrder = 0
+  end
+  object Panel1: TPanel
+    AnchorSideLeft.Control = Owner
+    AnchorSideTop.Side = asrBottom
+    AnchorSideRight.Control = Owner
+    AnchorSideRight.Side = asrBottom
+    AnchorSideBottom.Control = Owner
+    AnchorSideBottom.Side = asrBottom
+    Left = 12
+    Height = 179
+    Top = 416
+    Width = 752
+    Anchors = [akLeft, akRight, akBottom]
+    BorderSpacing.Around = 12
+    ClientHeight = 179
+    ClientWidth = 752
+    TabOrder = 1
+    OnResize = Panel1Resize
+    object Panel2: TPanel
+      Left = 0
+      Height = 0
+      Top = 0
+      Width = 1
+      Caption = 'Panel2'
+      TabOrder = 0
+    end
+    object Panel3: TPanel
+      Left = 1
+      Height = 0
+      Top = 0
+      Width = 1
+      Caption = 'Panel3'
+      TabOrder = 1
+    end
+  end
+  object Timer1: TTimer
+    Enabled = False
+    OnTimer = Timer1Timer
+    Left = 304
+    Top = 32
+  end
+end
