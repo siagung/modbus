@@ -202,7 +202,7 @@ begin
   end;
   {$ifdef TCP}
   cmboSerialPorts.Enabled:=false;
-  //Edit1Change(Edit1);
+  Edit1Change(Edit1);
   {$else}
   Edit1.Enabled:=false;
   Application.QueueAsyncCall(@InitMain,0);
@@ -392,8 +392,7 @@ begin
   {$endif TCP}
   PLCBlockNormal.Read;
   aValue:=(Trunc(PLCBlockNormal.ValueRaw[0]) AND  $FFFF);
-  //PSmallInt(PtrWordWalker)^
-  result:=ShortInt(aValue)/100;
+  result:=PSmallInt(@aValue)^;
 end;
 
 function TForm1.SetCapacity(value:integer):integer;
