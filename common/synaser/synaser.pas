@@ -368,6 +368,8 @@ type
     {:Destroy handle in use. It close connection to serial port.}
     procedure CloseSocket; virtual;
 
+    procedure SetParity(parity: char);
+
     {:Reconfigure communication parameters on the fly. You must be connected to
      port before!
      @param(baud Define connection speed. Baud rate can be from 50 to 4000000
@@ -817,6 +819,23 @@ begin
   FComNr:= PortIsClosed;
   SetSynaError(sOK);
   DoStatus(HR_SerialClose, FDevice);
+end;
+
+procedure TBlockSerial.SetParity(parity: char);
+begin
+  case parity of
+    'N', 'n': dcb.Parity := 0;
+    'O', 'o': dcb.Parity := 1;
+    'E', 'e': dcb.Parity := 2;
+    'M', 'm': dcb.Parity := 3;
+    'S', 's': dcb.Parity := 4;
+  end;
+  if dcb.Parity > 0
+     then dcb.Flags := dcb.Flags or dcb_ParityCheck
+     else dcb.Flags := dcb.Flags and (not dcb_ParityCheck);
+  //if dcb.Parity > 0 then
+  //   dcb.Flags := dcb.Flags or dcb_ParityCheck;
+  SetCommState;
 end;
 
 {$IFDEF WIN32}
