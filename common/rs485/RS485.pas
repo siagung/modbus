@@ -2,11 +2,31 @@ unit rs485;
 
 interface
 
+{.$define MOCKANDSTUB}
+
 uses
-  Classes, SysUtils, StrUtils,
+  Classes, SysUtils,
   synaser;
 
 type
+  TBlockSerial = class (synaser.TBlockSerial)
+  private const
+    // 300V example data:
+    // address: 1
+    // cmd : 4
+    // length : 2
+    // data : 300V in 10mV
+    // CRC : 2 bytes
+  RESPONSEDATA : ansistring = #1 + #4 + #1 + #117 + #48;
+  RESPONSEDATA : ansistring = #1 + #4 + #1 + #117 + #48;
+  private
+    fdataindex : integer;
+    fcrc16     : word;
+  public
+    procedure Purge; override;
+    function RecvByte(timeout: integer): byte; override;
+  end;
+
   TRS485=class
   private
     ComPort1          : TBlockSerial;
@@ -22,25 +42,19 @@ type
     FErrors           : TStringList;
     FInfo             : TStringList;
 
-    Function GenerateCRC16(s1:ansistring):Word;
-    function SendCommand(var data:ansistring):boolean;
+    function  SendCommand(var data:ansistring):boolean;
 
     procedure AddErrors(data:string);
     function  GetErrors:String;
     procedure AddInfo(data:string);
     function  GetInfo:String;
-
-    function ReadVoltage(board,position:integer;var voltage:double):boolean;
-
   public
     constructor Create;
     destructor  Destroy;override;
 
     procedure Connect;
 
-    function  ReadTemperature(board:integer;var temperature:single):boolean;
-
-    function  GetFirmwareVersion(board:integer;var firmware,release:integer):boolean;
+    function  ReadVoltage(const Address:byte;var voltage:double):boolean;
 
     property  SerialPortName:string write FSerportName;
     property  SerialSpeed:dword write FSerspeed;
@@ -55,53 +69,16 @@ type
 implementation
 
 const
-  debugfilename                 = 'debug-rs485.dat';
+  debugfilename   = 'debug-rs485.dat';
 
-  Vmax                          = 5000/1000;
+  PortDelay       = 200;
 
-  Vref                          = 600/1000;
+  CMD_read        = $04;
+  CMD_info        = $11;
 
-  PortDelay                     = 100;
+  REG_voltage     = $1000;
+  REG_current     = $1001;
 
-  Temp_scale                    = 1/100;  // 10mV per degree C
-
-  Preamble                      = $AA;
-
-  CMD_start                     = $02;
-
-  CMD_read_voltage              = $50;
-
-  CMD_read_temperature          = $80;
-
-  CMD_write_address_eeprom      = $C0;
-  CMD_write_correction_eeprom   = $C1;
-  CMD_read_correction_eeprom    = $C2;
-
-  CMD_read_counter              = $91;
-
-  CMD_get_parameters            = $F3;
-
-  CMD_get_firmware_version      = $FE;
-  CMD_reset_board               = $FF;
-
-  {CRC8 lookup tables}
-  Table : Array[0..255] of integer = (
-  0, 94, 188, 226, 97, 63, 221, 131, 194, 156, 126, 32, 163, 253, 31, 65,
-  157, 195, 33, 127, 252, 162, 64, 30, 95, 1, 227, 189, 62, 96, 130, 220,
-  35, 125, 159, 193, 66, 28, 254, 160, 225, 191, 93, 3, 128, 222, 60, 98,
-  190, 224, 2, 92, 223, 129, 99, 61, 124, 34, 192, 158, 29, 67, 161, 255,
-  70, 24, 250, 164, 39, 121, 155, 197, 132, 218, 56, 102, 229, 187, 89, 7,
-  219, 133, 103, 57, 186, 228, 6, 88, 25, 71, 165, 251, 120, 38, 196, 154,
-  101, 59, 217, 135, 4, 90, 184, 230, 167, 249, 27, 69, 198, 152, 122, 36,
-  248, 166, 68, 26, 153, 199, 37, 123, 58, 100, 134, 216, 91, 5, 231, 185,
-  140, 210, 48, 110, 237, 179, 81, 15, 78, 16, 242, 172, 47, 113, 147, 205,
-  17, 79, 173, 243, 112, 46, 204, 146, 211, 141, 111, 49, 178, 236, 14, 80,
-  175, 241, 19, 77, 206, 144, 114, 44, 109, 51, 209, 143, 12, 82, 176, 238,
-  50, 108, 142, 208, 83, 13, 239, 177, 240, 174, 76, 18, 145, 207, 45, 115,
-  202, 148, 118, 40, 171, 245, 23, 73, 8, 86, 180, 234, 105, 55, 213, 139,
-  87, 9, 235, 181, 54, 104, 138, 212, 149, 203, 41, 119, 244, 170, 72, 22,
-  233, 183, 85, 11, 136, 214, 52, 106, 43, 117, 151, 201, 74, 20, 246, 168,
-  116, 42, 200, 150, 21, 75, 169, 247, 182, 232, 10, 84, 215, 137, 107, 53);
 
   {CRC16 lookup tables}
   Crc16Tab : Array[0..255] of Word = (
@@ -151,6 +128,52 @@ begin
   until ((GetTickCount64-FirstTickCount) >= msecs);
 end;
 
+function GenerateCRC16(s1:ansistring;seed:word=$FFFF):word;
+var
+  crc16:Word; i:Integer;
+begin
+  crc16 := seed;
+  if Length(s1)>0 then
+  begin
+    for i := 1 to Length(s1) do
+    begin
+      Crc16 := Crc16Tab[((Crc16 shr 8 ) xor Ord(s1[i])) and $ff] xor ((Crc16 shl 8) and $FFFF);
+    end;
+  end;
+  result := crc16;
+end;
+
+procedure TBlockSerial.Purge;
+begin
+  inherited;
+  {$ifdef MOCKANDSTUB}
+  fdataindex:=1;
+  fcrc16 := GenerateCRC16(RESPONSEDATA);
+  {$endif MOCKANDSTUB}
+end;
+
+function TBlockSerial.RecvByte(timeout: integer): byte;
+begin
+  {$ifdef MOCKANDSTUB}
+  if (fdataindex<=Length(RESPONSEDATA)) then
+  begin
+    result:=Ord(RESPONSEDATA[fdataindex]);
+  end
+  else
+  begin
+    if (fdataindex=(Length(RESPONSEDATA)+1)) then result:=(fcrc16 DIV 256);
+    if (fdataindex=(Length(RESPONSEDATA)+2)) then result:=(fcrc16 MOD 256);
+    if (fdataindex>(Length(RESPONSEDATA)+2)) then
+    begin
+      result:=0;
+    end;
+  end;
+  Inc(fdataindex);
+  {$else}
+  result:=inherited RecvByte(timeout);
+  {$endif MOCKANDSTUB}
+end;
+
 constructor TRS485.Create;
 var
   F:textfile;
@@ -183,7 +206,14 @@ end;
 procedure TRS485.Connect;
 begin
   Comport1.CloseSocket;
+  {$ifdef MSWindows}
   ComPort1.Connect(FSerportName);
+  {$else}
+  if (Pos('/dev/',FSerportName)<>1) then
+    ComPort1.Connect('/dev/'+FSerportName)
+  else
+    ComPort1.Connect(FSerportName);
+  {$endif MSWindows}
   if FAddressdetect
      then ComPort1.Config(FSerspeed,8,'M',SB1,false,false)
      else ComPort1.Config(FSerspeed,8,'N',SB1,false,false);
@@ -192,6 +222,7 @@ begin
   ComPort1.Purge;
   if (Comport1.LastError<>0) then
   begin
+    AddInfo(Comport1.LastErrorDesc);
     FEmulation:=True;
     exit;
   end;
@@ -206,44 +237,59 @@ begin
   inherited Destroy;
 end;
 
-Function TRS485.GenerateCRC16(s1:ansistring):Word;
-Var crc16:Word; i:Integer;
-Begin
-  crc16 := $FFFF;
-  if Length(s1)>0 then
-  begin
-    for i := 1 to Length(s1) do
-    begin
-      Crc16 := Crc16Tab[((Crc16 shr 8 ) xor Ord(s1[i])) and $ff] xor ((Crc16 shl 8) and $FFFF);
-    end;
-  end;
-  Result := crc16;
-End;
-
-
 function TRS485.SendCommand(var data:ansistring):boolean;
 var
   crc16:word;
   command,response:ansistring;
-  dataerrors,datalength:byte;
+  dataerrors:byte;
+  datalength:word;
   F:text;
   error:boolean;
   databyte,datacounter:byte;
 begin
-  error:=False;
-
-  result:=False;
+  result:=false;
 
   if FEmulation then exit;
+  ComPort1.Purge;
+
+  error:=false;
 
   dataerrors:=0;
 
   command:=data;
-  datalength:=length(command)-2;
-  if datalength=0
-     then command:=command+AnsiChar(0)
-     else Insert(AnsiChar(datalength), command, 3);
-  if (NOT FAddressdetect) then command:=AnsiChar(CMD_start)+command;
+
+  datalength:=0;
+  if (Ord(command[2])=CMD_read) then
+  begin
+    if (Length(command)=4) then
+    begin
+      // we only read a single register at this moment
+      // might be changed to read more data at once
+      datalength:=1;
+    end
+    else
+    if (Length(command)=5) then
+    begin
+      // datalength included as a byte in datastring, so use it.
+      datalength:=Ord(command[5]);
+    end
+    else
+    if (Length(command)=6) then
+    begin
+      // datalength included as a word in datastring, so use it.
+      datalength:=Ord(command[5])*256+Ord(command[6]);
+    end
+    else
+    begin
+      // should not happen !!!
+      datalength:=$FFFF;
+      AddInfo('Error. Impossible datalength.');
+    end;
+  end;
+
+  if ((datalength<>0) AND (datalength<>$FFFF)) then
+    command:=command+AnsiChar(byte(datalength DIV 256))+AnsiChar(byte(datalength MOD 256));
+
   crc16 := GenerateCRC16(command);
   command:=command+AnsiChar(byte(crc16 DIV 256))+AnsiChar(byte(crc16 MOD 256));
 
@@ -267,95 +313,146 @@ begin
       ComPort1.Sendstring(Copy(command,2,25));// send rest of command
     end else ComPort1.Sendstring(command);
 
-    Error:=(Comport1.LastError<>0);
+    if (Comport1.LastError<>0) then
+    begin
+      Error:=True;
+      AddInfo('Error. '+Comport1.LastErrorDesc);
+      //exit;
+    end;
 
-    Delay(1); // wait a short while before going on to give RS485 bus some time
+    Delay(10); // wait a short while before going on to give RS485 bus some time
 
     response:='';
-    databyte:=0;
 
-    // receive first pre-amble  integer
+    if Error then
+      AddInfo('Send command error.')
+    else
+      AddInfo('Send command ok. Receiving data.');
+
+    // read address
     if (NOT Error) then
     begin
-      databyte:=Comport1.RecvByte((2+2*dataerrors)*PortDelay);
-      Error:=(Comport1.LastError<>0);
+      databyte:=Comport1.RecvByte(PortDelay);
+      if (Comport1.LastError<>0) then
+      begin
+        Error:=True;
+        AddInfo('Error address. '+Comport1.LastErrorDesc);
+        //exit;
+      end;
+      // store address
+      if (NOT Error) then response:=response+AnsiChar(databyte);
     end;
 
-    // receive pre-amble + echo of command integer
-    while ( (databyte=Preamble) AND (NOT Error) ) do
+    // read command
+    if (NOT Error) then
     begin
       databyte:=Comport1.RecvByte(PortDelay);
-      Error:=(Comport1.LastError<>0);
+      if (Comport1.LastError<>0) then
+      begin
+        Error:=True;
+        AddInfo('Error command. '+Comport1.LastErrorDesc);
+        //exit;
+      end;
+      // store command
+      if (NOT Error) then response:=response+AnsiChar(databyte);
     end;
-
-    // store command integer
-    if (NOT Error) then response:=AnsiChar(databyte);
 
     // receive length of data
     datalength:=0;
     if (NOT Error) then
     begin
       datalength:=Comport1.RecvByte(PortDelay);
-      Error:=(Comport1.LastError<>0);
-      if (NOT Error) then response:=response+AnsiChar(datalength);
+      if (Comport1.LastError<>0) then
+      begin
+        Error:=True;
+        AddInfo('Error length. '+Comport1.LastErrorDesc);
+        //exit;
+      end;
+      if (NOT Error) then
+      begin
+        // store length
+        response:=response+AnsiChar(datalength);
+        // check if we receive bytes or words
+        if (Ord(response[2])=CMD_read) then datalength:=datalength*2;
+      end;
     end;
 
     // receive data payload
     datacounter:=0;
-    while ( (NOT Error) AND (datacounter<datalength) ) do
+    while ((NOT Error) AND (datacounter<datalength)) do
     begin
+      // store data
       response:=response+AnsiChar(Comport1.RecvByte(PortDelay));
-      Error:=(Comport1.LastError<>0);
+      if (Comport1.LastError<>0) then
+      begin
+        Error:=True;
+        AddInfo('Error data. '+Comport1.LastErrorDesc);
+        //exit;
+      end;
       Inc(datacounter);
     end;
 
     // receive CRC16
     if (NOT Error) then
     begin
+      // store crc msb
       databyte:=Comport1.RecvByte(PortDelay);
-      Error:=(Comport1.LastError<>0);
+      if (Comport1.LastError<>0) then
+      begin
+        Error:=True;
+        AddInfo('Error crc lsb. '+Comport1.LastErrorDesc);
+        //exit;
+      end;
       if (NOT Error) then response:=response+AnsiChar(databyte);
+      // store crc lsb
       databyte:=Comport1.RecvByte(PortDelay);
-      Error:=(Comport1.LastError<>0);
+      if (Comport1.LastError<>0) then
+      begin
+        Error:=True;
+        AddInfo('Error crc msb. '+Comport1.LastErrorDesc);
+        //exit;
+      end;
       if (NOT Error) then response:=response+AnsiChar(databyte);
     end;
 
     // Is crc ok, is length of response ok
-    if (NOT Error) then
+    crc16:=0;
+    if ((NOT Error) AND (Length(response)>0)) then
     begin
       crc16 := GenerateCRC16(response);
-      if ((crc16<>$0000) OR (length(response)<4))
-          then Error:=True;
+      if ((crc16<>$0000) OR (length(response)<5)) then
+      begin
+        Error:=True;
+        AddInfo('Response CRC16 error.');
+      end;
     end;
 
-    if Error then
+    if (True) then
     begin
       AssignFile(F,debugfilename);
       Append(F);
       Write(F,DateTimeToStr(Now));
-      if FAddressdetect then
-      begin
-        Write(F,' ... Address: ',InttoHex(Ord(command[1]),2));
-        Write(F,' ... Command: ',InttoHex(Ord(command[2]),2));
-      end
-      else
-      begin
-        Write(F,' ... Address: ',InttoHex(Ord(command[2]),2));
-        Write(F,' ... Command: ',InttoHex(Ord(command[3]),2));
-      end;
-      Write(F,' ... CRC: ',inttostr(crc16));
-      Write(F,' ... Response: ',response);
-      Write(F,' ... Length response: ', length(response));
+      if (NOT Error) then AddInfo('. All ok') else AddInfo('. Error !');
+      Write(F,'Address: ',InttoHex(Ord(command[1]),2));
+      Write(F,' ... Command: ',InttoHex(Ord(command[2]),2));
+      Write(F,' ... Register: ',InttoHex(Ord(command[3])*256+Ord(command[4]),4));
       Writeln(F,' ... Command: ', command,'.!!');
+      Write(F,'Length response: ', length(response));
+      Write(F,' ... CRC response: ',inttostr(crc16));
+      if (Length(response)>0) then Write(F,'Address: ',InttoHex(Ord(response[1]),2));
+      if (Length(response)>1) then Write(F,' ... Command: ',InttoHex(Ord(response[2]),2));
+      if (Length(response)>2) then Write(F,' ... Length reported: ',InttoHex(Ord(response[3]),2));
+      Writeln(F,' ... Response: ',response);
       CloseFile(F);
       Delay(PortDelay); // pause a while before next try !!!
-    end
-    else
+    end;
+
+    data:=#0+#0;
+    if (NOT Error) then
     //process returned data .. if valid, return data else set error
     begin
-      datalength:=ord(response[2]);
-      if length(response)=4+datalength
-         then data:=Copy(response,3,datalength)
+      if length(response)=5+datalength
+         then data:=Copy(response,4,datalength)
          else error:=True;
     end;
 
@@ -363,6 +460,7 @@ begin
 
   until ((NOT error) OR (dataerrors>NumError));
 
+  {
   if (Error) then
   begin
     Delay(PortDelay);
@@ -374,131 +472,25 @@ begin
     ComPort1.Purge;
     Delay(PortDelay);
   end else Delay(1); // wait a short while before going on to give RS485 bus some time
-
-  result:=error;
-end;
-
-
-function TRS485.ReadVoltage(board,position:integer;var voltage:double):boolean;
-var
-  data:ansistring;
-  error:boolean;
-  result1,result2:UInt64;
-  //f:text;
-begin
-  //data:=AnsiChar(chr(Address_data[board].Address))+AnsiChar(chr(CMD_read_voltage+position-1));
-  //data:=AnsiChar(NewController[board].Address_data)+AnsiChar(CMD_read_voltage+position-1);
-  error:=SendCommand(data);
-
-  // expecting 2 longs (sum-value + average count)
-  if ((NOT error) AND (length(data)=8)) then
-  begin
-    result1:=ord(data[4]);
-    result1:=result1*256+ord(data[3]);
-    result1:=result1*256+ord(data[2]);
-    result1:=result1*256+ord(data[1]);
-    result2:=ord(data[8]);
-    result2:=result2*256+ord(data[7]);
-    result2:=result2*256+ord(data[6]);
-    result2:=result2*256+ord(data[5]);
-    if (result2>0) then
-    begin
-      voltage:=1000*result1/(result2*1023);
-    end;
-  end;
-  //voltage:=result2;
-  result:=error;
-end;
-
-
-function TRS485.ReadTemperature(board:integer;var temperature:single):boolean;
-var
-  error:boolean;
-  dataerrors:integer;
-  data:ansistring;
-  tempstore:double;
-  TempWord:word;
-  crc8:integer;
-begin
-  error:=false;
-
-  error:=ReadVoltage(board,1,tempstore);
-
-  if (NOT error) then
-  begin
-    temperature:=tempstore*100;
-    //error:=ReadRefVoltage(board,voltage);
-    //if (NOT error) then temperature:=temperature*(Vref/voltage);
-  end;
-
-  {
-  errors:=0;
-  repeat
-    Inc(errors);
-    data:=AnsiChar(NewController[board].Address_data)+AnsiChar(CMD_read_temperature+1);
-    error:=SendCommand(data);
-
-    if ((NOT error) AND (length(data)=2)) then
-    begin
-      TempWord := (256*ord(data[2])+ord(data[1]));
-      if TempWord<256
-         then temperature:=(TempWord/2)
-         else temperature:=-1*(((NOT TempWord)+1)/2);
-    end;
-
-    if ((NOT error) AND ((length(data)=4) OR (length(data)=5))) then
-    begin
-      tempstore:=0;
-      if ord(data[4])>0 then tempstore:=(25/100)-((ord(data[4])-ord(data[3]))/ord(data[4]));
-      //if ord(data[4])-ord(data[3])=1 then error !!!!!!!!!!!!!!!!!!!
-      TempWord := ((256*ord(data[2])+ord(data[1])) AND $FFFE);
-      if TempWord<256
-         then temperature:=(TempWord/2) - tempstore
-         else temperature:=-1*(((NOT TempWord)+1)/2) - tempstore;
-    end;
-
-    if ((NOT error) AND (length(data)=9)) then
-    begin
-      CRC8:=0;
-      for TempWord := 1 to 9 do CRC8 := Table[CRC8 xor ord(data[TempWord])];
-      if CRC8=0 then
-      begin
-        tempstore:=0;
-        if ord(data[8])>0 then tempstore:=(25/100)-((ord(data[8])-ord(data[7]))/ord(data[8]));
-        //if ord(data[4])-ord(data[3])=1 then error !!!!!!!!!!!!!!!!!!!
-        TempWord := ((256*ord(data[2])+ord(data[1])) AND $FFFE);
-        if TempWord<256
-           then temperature:=(TempWord/2) - tempstore
-           else temperature:=-1*(((NOT TempWord)+1)/2) - tempstore;
-      end else error:=True;
-    end;
-  until ((NOT error) OR (errors>NumError));
   }
-
   result:=error;
-
 end;
 
-function TRS485.GetFirmwareVersion(board:integer;var firmware,release:integer):boolean;
+
+function TRS485.ReadVoltage(const Address:byte;var voltage:double):boolean;
 var
   data:ansistring;
   error:boolean;
 begin
-  //read firmware
-  //data:=AnsiChar(NewController[board].Address_data)+AnsiChar(CMD_get_parameters);
-  data:=data+AnsiChar(4);
+  data:=AnsiChar(chr(Address))+AnsiChar(chr(CMD_read))+AnsiChar(chr(REG_voltage DIV 256))+AnsiChar(chr(REG_voltage MOD 256));
+
   error:=SendCommand(data);
-  if ((NOT error) AND (length(data)=3)) then
-  begin
-    firmware:=ord(data[2]);
-    release:=ord(data[3]);
-  end;
+
+  // expecting 2 bytes
   if ((NOT error) AND (length(data)=2)) then
   begin
-    firmware:=ord(data[1]);
-    release:=ord(data[2]);
+    voltage:=((ord(data[1])*256+ord(data[2]))/100);
   end;
-
   result:=error;
 end;
 
